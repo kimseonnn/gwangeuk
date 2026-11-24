@@ -6,6 +6,7 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  actions: write
   pages: write
   id-token: write
 concurrency:
@@ -19,11 +20,18 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      # 예전 배포 artifact 지우기 (계정 저장 공간 한도)
+      - name: 예전 artifact 정리
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api --paginate "repos/${{ github.repository }}/actions/artifacts?per_page=100" --jq '.artifacts[].id' | while read id; do gh api -X DELETE "repos/${{ github.repository }}/actions/artifacts/$id" || true; done
       - uses: actions/configure-pages@v5
         with:
           enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: .
+          retention-days: 1
       - id: deployment
         uses: actions/deploy-pages@v4
